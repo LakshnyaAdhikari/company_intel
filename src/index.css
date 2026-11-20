@@ -4,24 +4,32 @@
 
 @layer base {
   :root {
-    --background: 210 24% 97%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --primary: 216 88% 42%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 164 54% 34%;
+    /* Warm Beige / Cream / Warm Stone Enterprise Palette */
+    --background: 36 28% 95%;       /* #F5EFEB - Warm Beige canvas */
+    --foreground: 24 10% 10%;       /* #1C1917 - Deep Espresso text */
+    
+    --card: 40 33% 98%;             /* #FAF7F2 - Pure Cream Surface */
+    --card-foreground: 24 10% 10%;  /* #1C1917 */
+    
+    --primary: 24 10% 10%;          /* #1C1917 - Premium Obsidian / Charcoal CTA */
+    --primary-foreground: 40 33% 98%;
+    
+    --secondary: 142 71% 29%;       /* #15803D - Deep Forest Green status */
     --secondary-foreground: 0 0% 100%;
-    --muted: 210 24% 93%;
-    --muted-foreground: 215 16% 42%;
-    --accent: 38 76% 54%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214 22% 86%;
-    --input: 214 22% 86%;
-    --ring: 217 91% 45%;
-    --radius: 0.5rem;
+    
+    --muted: 33 24% 90%;            /* #EFE6DC - Soft parchment */
+    --muted-foreground: 25 10% 45%; /* #78716C - Warm Stone secondary text */
+    
+    --accent: 32 95% 44%;           /* #D97706 - Amber/Terracotta accent */
+    --accent-foreground: 24 10% 10%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 40 33% 98%;
+    
+    --border: 33 22% 82%;           /* #D8C7B5 - Subtle warm border */
+    --input: 33 22% 82%;
+    --ring: 32 95% 44%;             /* Amber focus ring */
+    --radius: 0.75rem;              /* Modern softer corners */
   }
 
   * {
@@ -38,14 +46,14 @@
 
 @layer components {
   .surface-panel {
-    @apply rounded-md border bg-card shadow-sm;
+    @apply rounded-xl border border-border bg-card shadow-[0_2px_12px_rgba(28,25,23,0.03)];
   }
 
   .section-title {
-    @apply text-base font-semibold text-foreground;
+    @apply text-base font-bold text-foreground tracking-tight font-serif;
   }
 
   .section-subtitle {
-    @apply mt-1 text-sm text-muted-foreground;
+    @apply mt-1 text-sm text-muted-foreground font-medium;
   }
 }
