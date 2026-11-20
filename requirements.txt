@@ -1,0 +1,14 @@
+# API and validation
+fastapi
+uvicorn[standard]
+pydantic
+
+# Website crawling and content extraction
+requests
+beautifulsoup4
+lxml
+playwright
+
+# AI analysis and Azure OpenAI configuration
+crewai
+python-dotenv

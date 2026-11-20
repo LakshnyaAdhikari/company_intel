@@ -1,0 +1,44 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Python virtual environments and generated files
+venv/
+.venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Playwright and CrewAI local runtime data
+playwright/.cache/
+backend/.crewai_storage/
+
+# Node / Vite generated dependencies and build output
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Runtime logs and generated analysis exports
+*.log
+*.out.log
+*.err.log
+*_analysis.csv
+backend/company_analysis.csv
+backend/results/*.json
+
+# IDE and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
