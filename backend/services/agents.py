@@ -1,17 +1,26 @@
 from dotenv import load_dotenv
 import os
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 from crewai import Agent, Task, Crew, LLM
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(BACKEND_DIR / ".env")
 
-llm = LLM(
-    model=f"azure/{os.getenv('AZURE_OPENAI_DEPLOYMENT')}",
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    base_url=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    api_version=os.getenv("AZURE_OPENAI_API_VERSION")
-)
+
+def _get_llm():
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError(
+            "GEMINI_API_KEY is missing. Add it to backend/.env before "
+            "starting an analysis."
+        )
+
+    return LLM(
+        model=os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+        api_key=api_key,
+        timeout=55
+    )
 
 
 def clean_output(output):
@@ -27,6 +36,8 @@ def _raise_if_cancelled(should_cancel):
 
 
 def run_company_analysis(company_content, selected_agents=None, should_cancel=None):
+
+    llm = _get_llm()
 
     leadership_agent = Agent(
         llm=llm,
@@ -289,7 +300,7 @@ Rules:
             f"Choose from: {valid_agent_names}"
         )
 
-    for agent_name in selected_agent_names:
+    def run_agent(agent_name):
         _raise_if_cancelled(should_cancel)
 
         crew = Crew(
@@ -299,6 +310,15 @@ Rules:
         )
 
         crew.kickoff()
+
+    with ThreadPoolExecutor(max_workers=len(selected_agent_names)) as executor:
+        futures = [
+            executor.submit(run_agent, agent_name)
+            for agent_name in selected_agent_names
+        ]
+
+        for future in futures:
+            future.result()
 
     return {
         agent_name: (
