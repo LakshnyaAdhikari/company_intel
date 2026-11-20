@@ -9,6 +9,6 @@ beautifulsoup4
 lxml
 playwright
 
-# AI analysis and Azure OpenAI configuration
-crewai[azure-ai-inference]
+# AI analysis and Google Gemini configuration
+crewai[google-genai]
 python-dotenv
