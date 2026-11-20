@@ -10,5 +10,5 @@ lxml
 playwright
 
 # AI analysis and Azure OpenAI configuration
-crewai
+crewai[azure-ai-inference]
 python-dotenv
