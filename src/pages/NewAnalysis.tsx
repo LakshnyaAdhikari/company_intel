@@ -29,6 +29,9 @@ const progressSteps = [
   "Complete"
 ];
 
+const ACTIVE_RUN_STORAGE_KEY = "company-intel.active-analysis-run";
+const terminalStatuses = new Set(["completed", "cancelled", "failed"]);
+
 export function NewAnalysis() {
   const [companyUrl, setCompanyUrl] = useState("https://grab.com");
   const [maxPages, setMaxPages] = useState(10);
@@ -46,16 +49,68 @@ export function NewAnalysis() {
   const [run, setRun] = useState<AnalysisRun | null>(null);
   const pollTimer = useRef<number | null>(null);
 
+  function stopPolling() {
+    if (pollTimer.current) {
+      window.clearInterval(pollTimer.current);
+      pollTimer.current = null;
+    }
+  }
+
+  function applyRun(latestRun: AnalysisRun) {
+    setRun(latestRun);
+    setActiveStep(stepIndex(latestRun.step));
+    setIsRunning(!terminalStatuses.has(latestRun.status));
+
+    if (latestRun.status === "failed") {
+      setError(latestRun.error || "Analysis failed");
+    }
+
+    if (terminalStatuses.has(latestRun.status)) {
+      stopPolling();
+    }
+  }
+
+  function beginPolling(runId: string) {
+    stopPolling();
+    pollTimer.current = window.setInterval(async () => {
+      try {
+        applyRun(await getAnalysisRun(runId));
+      } catch (err) {
+        stopPolling();
+        setIsRunning(false);
+        setError(err instanceof Error ? err.message : "Unable to poll run");
+      }
+    }, 1200);
+  }
+
   const canSubmit = useMemo(
     () => companyUrl.trim() && selectedAgents.length && !isRunning,
     [companyUrl, selectedAgents.length, isRunning]
   );
 
   useEffect(() => {
+    const savedRunId = window.localStorage.getItem(ACTIVE_RUN_STORAGE_KEY);
+
+    if (savedRunId) {
+      getAnalysisRun(savedRunId)
+        .then((savedRun) => {
+          applyRun(savedRun);
+          setCompanyUrl(savedRun.company_url);
+          setMaxPages(savedRun.max_pages);
+          if (savedRun.selected_agents?.length) {
+            setSelectedAgents(savedRun.selected_agents as AgentName[]);
+          }
+          if (!terminalStatuses.has(savedRun.status)) {
+            beginPolling(savedRun.run_id);
+          }
+        })
+        .catch(() => {
+          window.localStorage.removeItem(ACTIVE_RUN_STORAGE_KEY);
+        });
+    }
+
     return () => {
-      if (pollTimer.current) {
-        window.clearInterval(pollTimer.current);
-      }
+      stopPolling();
     };
   }, []);
 
@@ -73,6 +128,8 @@ export function NewAnalysis() {
     setRun(null);
     setIsRunning(true);
     setActiveStep(0);
+    stopPolling();
+    window.localStorage.removeItem(ACTIVE_RUN_STORAGE_KEY);
 
     try {
       const createdRun = await startAnalysisRun({
@@ -81,32 +138,9 @@ export function NewAnalysis() {
         selected_agents: selectedAgents
       });
 
-      setRun(createdRun);
-      setActiveStep(stepIndex(createdRun.step));
-
-      pollTimer.current = window.setInterval(async () => {
-        try {
-          const latestRun = await getAnalysisRun(createdRun.run_id);
-          setRun(latestRun);
-          setActiveStep(stepIndex(latestRun.step));
-
-          if (["completed", "cancelled", "failed"].includes(latestRun.status)) {
-            if (pollTimer.current) {
-              window.clearInterval(pollTimer.current);
-              pollTimer.current = null;
-            }
-
-            setIsRunning(false);
-
-            if (latestRun.status === "failed") {
-              setError(latestRun.error || "Analysis failed");
-            }
-          }
-        } catch (err) {
-          setError(err instanceof Error ? err.message : "Unable to poll run");
-          setIsRunning(false);
-        }
-      }, 1200);
+      window.localStorage.setItem(ACTIVE_RUN_STORAGE_KEY, createdRun.run_id);
+      applyRun(createdRun);
+      beginPolling(createdRun.run_id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed");
       setIsRunning(false);
@@ -120,7 +154,7 @@ export function NewAnalysis() {
 
     try {
       const cancelledRun = await cancelAnalysisRun(run.run_id);
-      setRun(cancelledRun);
+      applyRun(cancelledRun);
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to stop run");

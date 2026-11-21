@@ -22,6 +22,7 @@ htmlcov/
 # Playwright and CrewAI local runtime data
 playwright/.cache/
 backend/.crewai_storage/
+backend/run_history/
 
 # Node / Vite generated dependencies and build output
 node_modules/

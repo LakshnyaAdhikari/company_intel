@@ -2,6 +2,9 @@ import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+import json
+import os
+from pathlib import Path
 
 from backend.services.analysis_service import (
     AnalysisCancelled,
@@ -14,10 +17,55 @@ from backend.services.analysis_service import (
 executor = ThreadPoolExecutor(max_workers=2)
 runs = {}
 runs_lock = threading.Lock()
+RUNS_DIR = Path(__file__).resolve().parents[1] / "run_history"
 
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _run_path(run_id):
+    return RUNS_DIR / f"{run_id}.json"
+
+
+def _persist_run(run):
+    """Persist the public run state so completed reports survive an API restart."""
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    path = _run_path(run["run_id"])
+    temporary_path = path.with_suffix(".tmp")
+
+    with open(temporary_path, mode="w", encoding="utf-8") as file:
+        json.dump(public_run(run), file, ensure_ascii=False, indent=2)
+
+    os.replace(temporary_path, path)
+
+
+def _load_saved_runs():
+    if not RUNS_DIR.exists():
+        return
+
+    for path in RUNS_DIR.glob("*.json"):
+        try:
+            with open(path, mode="r", encoding="utf-8") as file:
+                run = json.load(file)
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        if run.get("status") in {"queued", "running"}:
+            run.update({
+                "status": "failed",
+                "step": "Failed",
+                "error": "The backend restarted before this analysis finished.",
+                "updated_at": _now()
+            })
+
+        run["_cancel_event"] = threading.Event()
+        runs[run["run_id"]] = run
+
+        try:
+            _persist_run(run)
+        except OSError:
+            pass
 
 
 def start_analysis_run(company_url, max_pages=10, selected_agents=None):
@@ -43,6 +91,7 @@ def start_analysis_run(company_url, max_pages=10, selected_agents=None):
 
     with runs_lock:
         runs[run_id] = run
+        _persist_run(run)
 
     executor.submit(_run_analysis, run_id)
 
@@ -54,6 +103,7 @@ def _update_run(run_id, **updates):
         run = runs[run_id]
         run.update(updates)
         run["updated_at"] = _now()
+        _persist_run(run)
 
 
 def _run_analysis(run_id):
@@ -116,6 +166,8 @@ def cancel_analysis_run(run_id):
             run["status"] = "cancelled"
             run["step"] = "Cancelled"
 
+        _persist_run(run)
+
     return public_run(run)
 
 
@@ -128,3 +180,6 @@ def public_run(run):
         for key, value in run.items()
         if not key.startswith("_")
     }
+
+
+_load_saved_runs()
